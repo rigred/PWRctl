@@ -50,7 +50,7 @@
    etc
 */ 
 
-#define DEBUG true
+#define DEBUG false
 // Action codes
 #define ACT_ON   0 // 000 = Power Off
 #define ACT_OFF  1 // 001 = Power On
@@ -83,7 +83,7 @@
 #define LED2 11
 #define LED3 12
 
-#define numDev 4         //Number of Devices this arduino controls
+const byte numDev = 4;         //Number of Devices this arduino controls
 const unsigned int clickSpeed = 125;
 const unsigned int holdSpeed = 4000;
 
@@ -94,9 +94,16 @@ bool parity_test(byte rxByte) {
 }
 
 void response(byte devId, byte response) {
-  byte rsData = (devId << 4) & B01110000; //get next 4 bits devId byte and shift right 4 places
-  rsData = (response << 1) & B00001110; //get the action bits and shift right 1 place
+  byte sbit = 1 << 7;
+  devId = (devId << 4) & B01110000; //get next 4 bits devId byte and shift left 4 places
+  response = (response << 1) & B00001110; //get the action bits and shift left 1 place
   
+  byte ebit = 1;
+
+  byte message = sbit | devId | response | ebit;
+
+  Serial.write(message);
+  Serial.flush();
   
   if (DEBUG)
     Serial.print("Response Code");
@@ -106,8 +113,6 @@ void response(byte devId, byte response) {
 bool devStatus(unsigned int devId) {
   return digitalRead(devId);
 }
-
-
 
 void setup() {
   Serial.begin(9600);   // Open serial port (9600 bauds) to be used for sending byte data

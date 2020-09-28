@@ -3,6 +3,7 @@ import os
 import sys
 import serial
 import argparse
+from time import sleep
 
 # Serial Protocol Defintions
 ## Action codes
@@ -29,10 +30,30 @@ numDev = 4 # load this value with numDevices queried from Arduino
 ser = serial.Serial(serialPort, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=1)
 
 def bitsauce(devId, act): #function that actual smushes our bitfields together as requested.
+	sBit = 1 << 7
+	actBits = act << 1
+	devBits = devId << 4
+	eBit = 1
+
+	message = sBit | actBits | devBits | eBit
+
+	print('Device ID: ' + str(devId))
+	print('Action ID: ' + str(act))
+
+	print('Sending: ' +bin(message) + ' to ' + ser.name)
+	ser.write(message)
+	buf = int.from_bytes(ser.read(1), 'big')
+	ser.flush()
+	print('Received: ' + bin(buf))
+
+	rsBit = bool((buf & 0b10000000) >> 7)
+	rdevBits = int((buf & 0b01110000) >> 4)
+	rstatBits = int((buf & 0b00001110) >> 1)
+	reBit = bool((buf & 0b00000001))
+	
 
 
-	print('bit sauce applied - sending')
-	return STAT_ON # return the status code from the arduino
+	return rstatBits # return the status code from the arduino
 
 
 def power(devId, state): #set the requested power state
@@ -113,32 +134,33 @@ args = my_parser.parse_args()
 if args.devnum and args.action:	
 
 	if (args.action == 'on'):
-		power(args.devnum, True)
+		for devid in args.devnum:
+			power(devid, True)
 
 	if (args.action == 'off'):
-		power(args.devnum, False)
+		for devnum in args.devnum:
+			power(devnum, False)
 
 	if (args.action == 'reset'):
-		reset(args.devnum)
+		for devnum in args.devnum:
+			reset(devnum)
 
 	if (args.action == 'kill'):
-		kill(args.devnum)
+		for devnum in args.devnum:
+			kill(devnum)
 		
 	if (args.action == 'status'):
-		status(args.devnum)
+		for devnum in args.devnum:
+			status(devnum)
 
 elif args.action and not args.devnum and args.action == 'status':
 	i = 0
 	while i < numDev:
 		status(i)
+		sleep(0.1)
 		i += 1
 
 else: 
 	print('cannot perform an action without a valid device number specified')
 
-
-#print(ser.name)
-#ser.write(node2On.to_bytes(1, byteorder='big'))
-#buf = ser.readline();
-#print(buf)
-#ser.close()
+ser.close()
