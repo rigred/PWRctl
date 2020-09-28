@@ -1,4 +1,4 @@
-/*
+ /*
    2x CD4066
    4 input pins per chip
    D16 = PWR Node 0
@@ -65,6 +65,7 @@
    (4) 100 = Action Success
    (5) 101 = Request Error
    (6) 110 = Parity Error
+   (7) 111 = Bad Data received
 */
 
 #define DEBUG true

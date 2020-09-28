@@ -1,30 +1,81 @@
+#!/usr/bin/python3
 import os
 import sys
 import serial
 import argparse
 
+serialPort = '/dev/ttyUSB0'
+
+ser = serial.Serial(serialPort, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=1)
+
+def power(devId, state):
+	if (state):
+		print('powering on')
+	else :
+		print('powering off')
+
+def reset(devId):
+	print('system reset')
+
+def kill(devId):
+	print('system forced off')
+
+def status(devId):
+	print('system status: ')
+
+def query():
+	print('all systems status')
+
+
 
 my_parser = argparse.ArgumentParser(description='Control Computers via Arduino')
 
 
-my_parser.add_argument('Device',
-					   metavar='devnum',
+my_parser.add_argument('-d', '--devnum', dest='devnum', action='append',
 					   type=int,
-					   help='The device to issue a command to')
-my_parser.add_argument('Action',
+					   required=False,
+					   metavar='int',
+					   help='The device to issue a action to')
+my_parser.add_argument('action',
+					   type = str.lower,
 					   metavar='action',
-					   type=str,
-					   help='The command to issue to the device')
-my_parser.add_argument()
+					   default='status',
+					   choices=['on', 'off', 'reset','kill', 'status'],
+					   help='The command to issue to the device.\n If a device number is specified it will be issued to that particular device.\n If no device is specified only the status can be printed for all devices.')
 
 # Execute the parse_args() method
 args = my_parser.parse_args()
 
-devname = args.Device
+if args.devnum and args.action:	
+
+	if (args.action == 'on'):
+		power(args.devnum, True)
+
+	if (args.action == 'off'):
+		power(args.devnum, False)
+
+	if (args.action == 'reset'):
+		reset(args.devnum)
+
+	if (args.action == 'kill'):
+		kill(args.devnum)
+		
+	if (args.action == 'status'):
+		status(args.devnum)
+
+elif args.action and not args.devnum and args.action == 'status':
+	query()
+
+else: 
+	print('cannot perform an action without a valid device number specified')
 
 
 
-#ser = serial.Serial('/dev/ttyUSB0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=0)
+
+
+
+
+
 #print(ser.name)
 #ser.write(node2On.to_bytes(1, byteorder='big'))
 #buf = ser.readline();
