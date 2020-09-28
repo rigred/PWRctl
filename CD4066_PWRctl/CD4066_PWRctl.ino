@@ -48,44 +48,26 @@
    010 = Dev 3
    011 = Dev 4
    etc
-
-   action codes
-   (0) 000 = Power Off
-   (1) 001 = Power On
-   (2) 010 = Force Off
-   (3) 011 = Reset
-   (4) 100 = Status
-   (5) 101 = Query Number of Devices (Changes DevID response into number of devices)
-
-   response codes
-   (0) 000 = Powered Off
-   (1) 001 = Powered On
-   (2) 010 = Power On failed
-   (3) 011 = Power Off failed
-   (4) 100 = Action Success
-   (5) 101 = Request Error
-   (6) 110 = Parity Error
-   (7) 111 = Bad Data received
-*/
+*/ 
 
 #define DEBUG true
 // Action codes
-#define ACT_ON   0
-#define ACT_OFF  1
-#define ACT_KILL 2
-#define ACT_RST  3
-#define ACT_STAT 4
-#define ACT_QRY  5
+#define ACT_ON   0 // 000 = Power Off
+#define ACT_OFF  1 // 001 = Power On
+#define ACT_KILL 2 // 010 = Force Off
+#define ACT_RST  3 // 011 = Reset
+#define ACT_STAT 4 // 100 = Status
+#define ACT_QRY  5 // 101 = Query Number of Devices (Changes DevID response into number of devices)
 
 // Response codes
-#define STAT_OFF      0
-#define STAT_ON       1
-#define STAT_ON_FAIL  2
-#define STAT_OFF_FAIL 3
-#define STAT_OK       4
-#define STAT_FAIL     5
-#define STAT_PARITY   6
-#define STAT_DATABAD  7
+#define STAT_OFF      0 // 000 = Powered Off
+#define STAT_ON       1 // 001 = Powered On
+#define STAT_ON_FAIL  2 // 010 = Power On failed
+#define STAT_OFF_FAIL 3 // 011 = Power Off failed
+#define STAT_OK       4 // 100 = Action Success
+#define STAT_FAIL     5 // 101 = Request Error
+#define STAT_PARITY   6 // 110 = Parity Error
+#define STAT_DATABAD  7 // 111 = Bad Data received
 
 #define PWR0 16
 #define PWR1 17

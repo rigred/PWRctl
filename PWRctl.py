@@ -6,22 +6,22 @@ import argparse
 
 # Serial Protocol Defintions
 ## Action codes
-ACT_ON   = 0 # Turn On
-ACT_OFF  = 1 # Turn Off
-ACT_KILL = 2 # Force Device Off (Hold Power btn)
-ACT_RST  = 3 # Reset Dev
-ACT_STAT = 4 # Query State of Specific Device
-ACT_QRY  = 5 # Query Count of Devices
+ACT_ON   = 0 # 0x000 Turn On
+ACT_OFF  = 1 # 0x001 Turn Off
+ACT_KILL = 2 # 0x010 Force Device Off (Hold Power btn)
+ACT_RST  = 3 # 0x011 Reset Dev
+ACT_STAT = 4 # 0x100 Query State of Specific Device
+ACT_QRY  = 5 # 0x101 Query Count of Devices
 
 ## Codes returned by arduino in response to actions
-STAT_OFF      = 0
-STAT_ON       = 1
-STAT_ON_FAIL  = 2
-STAT_OFF_FAIL = 3
-STAT_OK       = 4
-STAT_FAIL     = 5
-STAT_PARITY   = 6
-STAT_DATABAD  = 7
+STAT_OFF      = 0 #0x000
+STAT_ON       = 1 #0x001
+STAT_ON_FAIL  = 2 #0x010
+STAT_OFF_FAIL = 3 #0x011
+STAT_OK       = 4 #0x100
+STAT_FAIL     = 5 #0x101
+STAT_PARITY   = 6 #0x110
+STAT_DATABAD  = 7 #0x111
 
 serialPort = '/dev/ttyUSB0' # change as needed depending on system
 numDev = 0 # load this value with numDevices queried from Arduino
