@@ -25,9 +25,9 @@ STAT_PARITY   = 6 #0x110
 STAT_DATABAD  = 7 #0x111
 
 serialPort = '/dev/ttyUSB0' # change as needed depending on system
-numDev = 4 # load this value with numDevices queried from Arduino
+numDev = 0 # load this value with numDevices queried from Arduino
 
-ser = serial.Serial(serialPort, 38400, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=2)
+ser = serial.Serial(serialPort, 38400, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=5)
 
 def bitsauce(devId, act): #function that actual smushes our bitfields together as requested.
 	#print('devid: '+ str(type(devId)))
@@ -37,6 +37,7 @@ def bitsauce(devId, act): #function that actual smushes our bitfields together a
 	devBits = devId << 4
 	actBits = act << 1
 	eBit = 1
+	rstatBits = 0
 
 	message = (sBit | devBits | actBits | eBit).to_bytes(1, 'little')
 
@@ -44,12 +45,10 @@ def bitsauce(devId, act): #function that actual smushes our bitfields together a
 	print('Action ID: ' + str(act))
 
 	print('Sending: ' + bin(ord(message)) + ' to ' + ser.name)
-	ser.write(message)
-	sleep(0.1)
-	ser.flushOutput()
 	
-	buf = ser.read()
-	ser.flushInput()
+	ser.write(message)
+	ser.flush()
+	buf = ser.read(1)
 
 	intByte = int.from_bytes(buf, 'little')
 
@@ -116,8 +115,13 @@ def status(devId):
 	
 
 def query(): # the function to get number of devices on the system
-	#bitsauce(0, ACT_QRY)
-	print('device stat')
+	count = bitsauce(0, ACT_QRY)
+	if (count > 0):
+		print('numder of devices: ' + count)
+		return count
+	else:
+		print('no devices to control')
+		exit()
 
 
 my_parser = argparse.ArgumentParser(description='Control Computers via Arduino')
@@ -138,29 +142,31 @@ my_parser.add_argument('action',
 # Execute the parse_args() method
 args = my_parser.parse_args()
 
-if args.devnum and args.action:	
+if args.devnum and args.action:
+	numDev = query()
 
 	if (args.action == 'on'):
 		for devid in args.devnum:
 			power(devid, True)
 
 	if (args.action == 'off'):
-		for devnum in args.devnum:
-			power(devnum, False)
+		for devid in args.devnum:
+			power(devid, False)
 
 	if (args.action == 'reset'):
-		for devnum in args.devnum:
-			reset(devnum)
+		for devid in args.devnum:
+			reset(devid)
 
 	if (args.action == 'kill'):
-		for devnum in args.devnum:
-			kill(devnum)
+		for devid in args.devnum:
+			kill(devid)
 		
 	if (args.action == 'status'):
-		for devnum in args.devnum:
-			status(devnum)
+		for devid in args.devnum:
+			status(devid)
 
 elif args.action and not args.devnum and args.action == 'status':
+	numDev = query()
 	i = 0
 	while i < numDev:
 		status(i)
