@@ -4,12 +4,15 @@ import sys
 import serial
 import argparse
 
-serialPort = '/dev/ttyUSB0'
+serialPort = '/dev/ttyUSB0' # change as needed depending on system
+numDev = 0 # load this value with numDevices queried from Arduino
 
 ser = serial.Serial(serialPort, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=1)
 
 def power(devId, state):
 	if (state):
+
+
 		print('powering on')
 	else :
 		print('powering off')
@@ -34,7 +37,7 @@ my_parser = argparse.ArgumentParser(description='Control Computers via Arduino')
 my_parser.add_argument('-d', '--devnum', dest='devnum', action='append',
 					   type=int,
 					   required=False,
-					   metavar='int',
+					   metavar='dev id',
 					   help='The device to issue a action to')
 my_parser.add_argument('action',
 					   type = str.lower,
@@ -64,7 +67,9 @@ if args.devnum and args.action:
 		status(args.devnum)
 
 elif args.action and not args.devnum and args.action == 'status':
-	query()
+	i = 1
+	while i < numDev:
+		status(i)
 
 else: 
 	print('cannot perform an action without a valid device number specified')
