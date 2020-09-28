@@ -6,6 +6,8 @@ import termios
 import argparse
 from time import sleep
 
+DEBUG = False
+
 # Serial Protocol Defintions
 ## Action codes
 ACT_OFF  = 0 # 0x000 Turn Off
@@ -38,7 +40,8 @@ f.close()
 ser = serial.Serial()
 ser.baudrate = 115200
 ser.port = serialPort
-print ('dtr =', ser.dtr)
+if DEBUG:
+	print ('dtr =', ser.dtr)
 ser.open()
 
 def recv(ser, x):
@@ -57,17 +60,18 @@ def bitsauce(devId, act): #function that actual smushes our bitfields together a
 
 	message = (sBit | devBits | actBits | eBit).to_bytes(1, 'little')
 
-	print('Device ID: ' + str(devId))
-	print('Action ID: ' + str(act))
-
-	print('Sending: ' + bin(ord(message)) + ' to ' + ser.name)
+	if DEBUG:
+		print('Device ID: ' + str(devId))
+		print('Action ID: ' + str(act))
+		print('Sending: ' + bin(ord(message)) + ' to ' + ser.name)
 	
 	ser.write(message)
 	buf = ser.read(1)
-	print(buf.hex())
 	ser.flush()
-	
 
+	if DEBUG:
+		print(buf.hex())
+	
 	intByte = int.from_bytes(buf, 'little')
 
 	rsBit = bool((intByte & 0b10000000) >> 7)
@@ -75,7 +79,8 @@ def bitsauce(devId, act): #function that actual smushes our bitfields together a
 	rstatBits = int((intByte & 0b00001110) >> 1)
 	reBit = bool((intByte & 0b00000001))
 
-	print('Response: ' + bin(intByte) + '\n\tStart Bit: ' + str(rsBit) + '\n\tDevice ID: ' + str(rdevBits) + '\n\tStatus Code: ' + str(rstatBits) + '\n\tEnd Bit: ' + str(reBit))
+	if DEBUG:
+		print('Response: ' + bin(intByte) + '\n\tStart Bit: ' + str(rsBit) + '\n\tDevice ID: ' + str(rdevBits) + '\n\tStatus Code: ' + str(rstatBits) + '\n\tEnd Bit: ' + str(reBit))
 
 	return rstatBits # return the status code from the arduino
 
@@ -85,47 +90,47 @@ def power(devId, state): #set the requested power state
 		if (status(devId) == STAT_OFF):
 			result = bitsauce(devId, ACT_ON)
 			if (result == STAT_ON):
-				print('system on')
+				print('system ' + str(devId) + ': on')
 			elif (result == STAT_ON_FAIL):
-				print('system failed to power on')
+				print('system ' + str(devId) + ': failed to power on')
 			else:
 				print('unknown error occured trying to power on the system')
 		else:
-			print('system already on')
+			print('system ' + str(devId) + ': already on')
 		
 	else: #Power off the system
 		if (status(devId) == STAT_ON):
 			result = bitsauce(devId, ACT_OFF)
 			if (result == STAT_OFF):
-				print('system off')
+				print('system ' + str(devId) + ': off')
 			elif (result == STAT_OFF_FAIL):
-				print('system failed to power off')
+				print('system ' + str(devId) + ': failed to power off')
 			else:
 				print('unknown error occured trying to power off the system - try the \'kill\' action if neccessary')
 		else:
-			print('system already off')
+			print('system ' + str(devId) + ': already off')
 	
 
 def reset(devId):
 	result = bitsauce(devId, ACT_RST)
 	if (result == STAT_OK):
-		print('system reset')
+		print('system ' + str(devId) + ': reset')
 
 def kill(devId):
 	result = bitsauce(devId, ACT_KILL)
 	if (result == STAT_OFF):
-		print('system off')
+		print('system ' + str(devId) + ': off')
 	elif (result == STAT_OFF_FAIL):
-		print('system kill failed. system still on - something went horribly wrong!')
+		print('system ' + str(devId) + ': kill failed. system still on - something went horribly wrong!')
 	else:
 		print('unknown error occurred while trying to force off the system - check the arduino')
 
 def status(devId):
 	result = bitsauce(devId, ACT_STAT)
 	if (result == STAT_OFF):
-		print('system off')
+		print('system ' + str(devId) + ': off')
 	elif(result == STAT_ON):
-		print('system on')
+		print('system ' + str(devId) + ': on')
 	else:
 		print('invalid status received from arduino - check the arduino') 
 
@@ -133,7 +138,6 @@ def status(devId):
 	
 
 def query(): # the function to get number of devices on the system
-	print('query number of devices')
 	count = bitsauce(0, ACT_QRY)
 	if (count > 0):
 		print('numder of devices: ' + str(count))
