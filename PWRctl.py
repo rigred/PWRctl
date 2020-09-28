@@ -7,8 +7,8 @@ from time import sleep
 
 # Serial Protocol Defintions
 ## Action codes
-ACT_ON   = 0 # 0x000 Turn On
-ACT_OFF  = 1 # 0x001 Turn Off
+ACT_OFF  = 0 # 0x000 Turn Off
+ACT_ON   = 1 # 0x001 Turn On
 ACT_KILL = 2 # 0x010 Force Device Off (Hold Power btn)
 ACT_RST  = 3 # 0x011 Reset Dev
 ACT_STAT = 4 # 0x100 Query State of Specific Device
@@ -27,31 +27,38 @@ STAT_DATABAD  = 7 #0x111
 serialPort = '/dev/ttyUSB0' # change as needed depending on system
 numDev = 4 # load this value with numDevices queried from Arduino
 
-ser = serial.Serial(serialPort, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=1)
+ser = serial.Serial(serialPort, 38400, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=2)
 
 def bitsauce(devId, act): #function that actual smushes our bitfields together as requested.
+	#print('devid: '+ str(type(devId)))
+	#print('act: '+ str(type(act)))
+
 	sBit = 1 << 7
-	actBits = act << 1
 	devBits = devId << 4
+	actBits = act << 1
 	eBit = 1
 
-	message = sBit | actBits | devBits | eBit
+	message = (sBit | devBits | actBits | eBit).to_bytes(1, 'little')
 
 	print('Device ID: ' + str(devId))
 	print('Action ID: ' + str(act))
 
-	print('Sending: ' +bin(message) + ' to ' + ser.name)
+	print('Sending: ' + bin(ord(message)) + ' to ' + ser.name)
 	ser.write(message)
-	buf = int.from_bytes(ser.read(1), 'big')
-	ser.flush()
-	print('Received: ' + bin(buf))
-
-	rsBit = bool((buf & 0b10000000) >> 7)
-	rdevBits = int((buf & 0b01110000) >> 4)
-	rstatBits = int((buf & 0b00001110) >> 1)
-	reBit = bool((buf & 0b00000001))
+	sleep(0.1)
+	ser.flushOutput()
 	
+	buf = ser.read()
+	ser.flushInput()
 
+	intByte = int.from_bytes(buf, 'little')
+
+	rsBit = bool((intByte & 0b10000000) >> 7)
+	rdevBits = int((intByte & 0b01110000) >> 4)
+	rstatBits = int((intByte & 0b00001110) >> 1)
+	reBit = bool((intByte & 0b00000001))
+
+	print('Response: ' + bin(intByte) + '\n\tStart Bit: ' + str(rsBit) + '\n\tDevice ID: ' + str(rdevBits) + '\n\tStatus Code: ' + str(rstatBits) + '\n\tEnd Bit: ' + str(reBit))
 
 	return rstatBits # return the status code from the arduino
 
@@ -157,7 +164,7 @@ elif args.action and not args.devnum and args.action == 'status':
 	i = 0
 	while i < numDev:
 		status(i)
-		sleep(0.1)
+		#sleep(0.05)
 		i += 1
 
 else: 

@@ -1,59 +1,57 @@
- /*
-   2x CD4066
-   4 input pins per chip
-   D16 = PWR Node 0
-   D2  = RST Node 0
+/*
+  2x CD4066
+  4 input pins per chip
+  D16 = PWR Node 0
+  D2  = RST Node 0
 
-   D17 = PWR Node 1
-   D3  = RST Node 1
+  D17 = PWR Node 1
+  D3  = RST Node 1
 
-   PWR0   A   1      14  Vdd
-   PWR0   A   2      13  CA   D16
-   RST0   B   3      12  CD   D17
-   RST0   B   4      11   D   PWR1
-   D2    CB   5      10   D   PWR1
-   D3    CC   6      9    C   RST1
-        Vss   7      8    C   RST1
+  PWR0   A   1      14  Vdd
+  PWR0   A   2      13  CA   D16
+  RST0   B   3      12  CD   D17
+  RST0   B   4      11   D   PWR1
+  D2    CB   5      10   D   PWR1
+  D3    CC   6      9    C   RST1
+       Vss   7      8    C   RST1
 
-   -------------------------
+  -------------------------
 
-   PWR2   A   1      14  Vdd
-   PWR2   A   2      13  CA   D18
-   RST2   B   3      12  CD   D19
-   RST2   B   4      11   D   PWR3
-   D5     CB  5      10   D   PWR3
-   D4     CC  6      9    C   RST3
-         Vss  7      8    C   RST3
+  PWR2   A   1      14  Vdd
+  PWR2   A   2      13  CA   D18
+  RST2   B   3      12  CD   D19
+  RST2   B   4      11   D   PWR3
+  D5     CB  5      10   D   PWR3
+  D4     CC  6      9    C   RST3
+        Vss  7      8    C   RST3
 
-   D18 = PWR Node 2
-   D0  = RST Node 2
+  D18 = PWR Node 2
+  D0  = RST Node 2
 
-   D19 = PWR Node 3
-   D1  = RST Node 3
+  D19 = PWR Node 3
+  D1  = RST Node 3
 
 
-   Arduino PWRctrl binary protocol
+  Arduino PWRctrl binary protocol
 
-   Request Packets: start+devid+action+parity
+  Request Packets: start+devid+action+parity
 
-   sxxxyyzz 8bit byte
-   [s]  = 1 bit type checkbit (1 = request, 0 = response)
-   [xxx] = devID  = 3bit
-   [yyy] = action/response = 3bit
-   [z]  = parity = 1 bit
+  sxxxyyzz 8bit byte
+  [s]  = 1 bit type checkbit (1 = request, 0 = response)
+  [xxx] = devID  = 3bit
+  [yyy] = action/response = 3bit
+  [z]  = parity = 1 bit
 
-   devId codes
-   000 = Dev 1
-   001 = Dev 2
-   010 = Dev 3
-   011 = Dev 4
-   etc
-*/ 
-
-#define DEBUG false
+  devId codes
+  000 = Dev 1
+  001 = Dev 2
+  010 = Dev 3
+  011 = Dev 4
+  etc
+*/
 // Action codes
-#define ACT_ON   0 // 000 = Power Off
-#define ACT_OFF  1 // 001 = Power On
+#define ACT_OFF  0 // 000 = Power Off
+#define ACT_ON   1 // 001 = Power On
 #define ACT_KILL 2 // 010 = Force Off
 #define ACT_RST  3 // 011 = Reset
 #define ACT_STAT 4 // 100 = Status
@@ -89,33 +87,30 @@ const unsigned int holdSpeed = 4000;
 
 byte rxByte = 0;        // rxByte holds the received command.
 
-bool parity_test(byte rxByte) {
+bool parity_test(int rxByte) {
   return true;
 }
 
-void response(byte devId, byte response) {
+void response(byte devId, byte respId) {
   byte sbit = 1 << 7;
-  devId = (devId << 4) & B01110000; //get next 4 bits devId byte and shift left 4 places
-  response = (response << 1) & B00001110; //get the action bits and shift left 1 place
-  
+  devId = (devId << 4) & 0b01110000; //get next 4 bits devId byte and shift left 4 places
+  respId = (respId << 1) & 0b00001110; //get the action bits and shift left 1 place
+
   byte ebit = 1;
 
-  byte message = sbit | devId | response | ebit;
+  byte message = byte(sbit | ebit | devId | respId);
 
   Serial.write(message);
   Serial.flush();
-  
-  if (DEBUG)
-    Serial.print("Response Code");
 
 }
 
-bool devStatus(unsigned int devId) {
+bool devStatus(byte devId) {
   return digitalRead(devId);
 }
 
 void setup() {
-  Serial.begin(9600);   // Open serial port (9600 bauds) to be used for sending byte data
+  Serial.begin(38400);   // Open serial port (9600 bauds) to be used for sending byte data
   // pins used for reading PC board PWR LED (Hi/Low) status
   pinMode(LED0, INPUT);
   pinMode(LED1, INPUT);
@@ -144,119 +139,100 @@ void setup() {
 
 //--------------- loop -----------------------------------------------
 void loop() {
-  if (Serial.available() > 0) {        // Check receive buffer.
-    rxByte = Serial.read();            // Save character received.
-    Serial.flush();                    // Clear receive buffer.
-
-    //int rxData =(rxByte & B11111110) >> 1
-    bool ecc  = (rxByte & B00000001);
-    if (DEBUG)
-      Serial.print("Data Received");
+  if (Serial.available() == 1) {        // Check receive buffer.
+    rxByte = byte(Serial.read());
+    Serial.flush();
 
     if (parity_test(rxByte)) {
-      byte type = (rxByte & B10000000) >> 7; //get first bit of byte and shift right 7 places
-      byte devId = (rxByte & B01110000) >> 4; //get next 4 bits devId byte and shift right 4 places
-      byte actId = (rxByte & B00001110) >> 1; //get the action bits and shift right 1 place
+      byte type = (rxByte & 0b10000000) >> 7; //get first bit of byte and shift right 7 places
+      byte devId = (rxByte & 0b01110000) >> 4; //get next 4 bits devId byte and shift right 4 places
+      byte actId = (rxByte & 0b00001110) >> 1; //get the action bits and shift right 1 place
 
-      if (type == HIGH && devId < numDev) {
-        if (DEBUG)
-          Serial.print("Matched Check");
+      if (type == HIGH && devId < numDev && actId < 6) {
 
-        const int myPWR[] = {PWR0, PWR1, PWR2, PWR3};
-        const int myRST[] = {RST0, RST1, RST3, RST3};
-        const int mySTS[] = {LED0, LED1, LED2, LED3};
+        byte myPWR[numDev] = {PWR0, PWR1, PWR2, PWR3};
+        byte myRST[numDev] = {RST0, RST1, RST3, RST3};
+        byte mySTS[numDev] = {LED0, LED1, LED2, LED3};
 
         switch (actId) {
-          case ACT_OFF: // Power Off
-            if (devStatus(mySTS[devId]) == true) {
-              digitalWrite(myPWR[devId], HIGH);
+          case ACT_OFF: {// Power Off
+              if (devStatus(mySTS[devId]) == HIGH) {
+                digitalWrite(myPWR[devId], HIGH);
+                delay(clickSpeed);
+                digitalWrite(myPWR[devId], LOW);
+              }
               delay(clickSpeed);
-              digitalWrite(myPWR[devId], LOW);
+              if (devStatus(mySTS[devId]) == LOW) {
+                response(devId, STAT_OFF_FAIL);
+              } else {
+                response(devId, STAT_OFF);
+              }
+              break;
             }
-            delay(clickSpeed);
-            if (devStatus(mySTS[devId])) {
-              response(devId, STAT_OFF_FAIL);
-            } else {
-              response(devId, STAT_OFF);
-            }
-            if (DEBUG)
-              Serial.print("Power Off");
-            break;
 
-          case ACT_ON: // Power On
-            Serial.write("Power ON");
-            if (devStatus(mySTS[devId]) == false) {
-              digitalWrite(myPWR[devId], HIGH);
+          case ACT_ON: { // Power On
+              if (devStatus(mySTS[devId]) == LOW) {
+                digitalWrite(myPWR[devId], HIGH);
+                delay(clickSpeed);
+                digitalWrite(myPWR[devId], LOW);
+              }
               delay(clickSpeed);
-              digitalWrite(myPWR[devId], LOW);
+              if (devStatus(mySTS[devId]) == HIGH) {
+                response(devId, STAT_ON);
+              } else {
+                response(devId, STAT_ON_FAIL);
+              }
+              break;
             }
-            delay(clickSpeed);
-            if (devStatus(mySTS[devId])) {
-              response(devId, STAT_ON);
-            } else {
-              response(devId, STAT_ON_FAIL);
-            }
-            if (DEBUG)
-              Serial.print("Power On");
-            break;
 
-          case ACT_KILL:
-            // Force Off
-            if (devStatus(mySTS[devId]) == false) {
-              digitalWrite(myPWR[devId], HIGH);
-              delay(holdSpeed);
-              digitalWrite(myPWR[devId], LOW);
-            }
-            delay(clickSpeed);
-            if (devStatus(mySTS[devId])) {
-              response(devId, STAT_OFF_FAIL);
-            } else {
-              response(devId, STAT_OFF);
-            }
-            if (DEBUG)
-              Serial.print("Power Force Off");
-
-            break;
-
-          case ACT_RST: // Reset
-            if (devStatus(mySTS[devId]) == true) {
-              digitalWrite(myRST[devId], HIGH);
+          case ACT_KILL: {
+              // Force Off
+              if (devStatus(mySTS[devId]) == false) {
+                digitalWrite(myPWR[devId], HIGH);
+                delay(holdSpeed);
+                digitalWrite(myPWR[devId], LOW);
+              }
               delay(clickSpeed);
-              digitalWrite(myRST[devId], LOW);
+              if (devStatus(mySTS[devId])) {
+                response(devId, STAT_OFF_FAIL);
+              } else {
+                response(devId, STAT_OFF);
+              }
+              break;
             }
-            response(devId, STAT_OK);
-            if (DEBUG)
-              Serial.print("Reset");
-            break;
 
-          case ACT_STAT: //Status
-            response(devId, devStatus(mySTS[devId])); // Return the Status of the LED input line (Lo/Hi) automatically encoded to 0=off/1=On
-            if (DEBUG)
-              Serial.print("Status");
-            break;
+          case ACT_RST: { // Reset
+              if (devStatus(mySTS[devId]) == true) {
+                digitalWrite(myRST[devId], HIGH);
+                delay(clickSpeed);
+                digitalWrite(myRST[devId], LOW);
+              }
+              response(devId, STAT_OK);
+              break;
+            }
 
-          case ACT_QRY:
-            response(numDev, STAT_OK);
+          case ACT_STAT: { //Status
+              response(devId, devStatus(mySTS[devId])); // Return the Status of the LED input line (Lo/Hi) automatically encoded to 0=off/1=On
+              break;
+            }
 
-          default:
-            response(devId, STAT_FAIL);
-            if (DEBUG)
-              Serial.print("Error");
+          case ACT_QRY: {
+              response(numDev, STAT_OK);
+            }
+
+          default: {
+              response(devId, STAT_FAIL);
+            }
 
         }
 
       } else {
         response(devId, STAT_DATABAD);
-        if (DEBUG)
-          Serial.print("Failed Check");
       }
-
 
 
     } else {
       response(0, STAT_PARITY);
-      if (DEBUG)
-        Serial.print("Parity Error");
     }
   }
 }
