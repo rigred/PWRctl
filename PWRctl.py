@@ -2,6 +2,7 @@
 import os
 import sys
 import serial
+import termios
 import argparse
 from time import sleep
 
@@ -27,7 +28,22 @@ STAT_DATABAD  = 7 #0x111
 serialPort = '/dev/ttyUSB0' # change as needed depending on system
 numDev = 0 # load this value with numDevices queried from Arduino
 
-ser = serial.Serial(serialPort, 38400, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE, timeout=5)
+## Disgusting workaround to avoid resetting the RTS line
+f = open(serialPort)
+attrs = termios.tcgetattr(f)
+attrs[2] = attrs[2] & ~termios.HUPCL
+termios.tcsetattr(f, termios.TCSAFLUSH, attrs)
+f.close()
+
+ser = serial.Serial()
+ser.baudrate = 115200
+ser.port = serialPort
+print ('dtr =', ser.dtr)
+ser.open()
+
+def recv(ser, x):
+  data = ser.read(1)
+  return data+ser.read(min(x-1, ser.in_waiting))
 
 def bitsauce(devId, act): #function that actual smushes our bitfields together as requested.
 	#print('devid: '+ str(type(devId)))
@@ -47,8 +63,10 @@ def bitsauce(devId, act): #function that actual smushes our bitfields together a
 	print('Sending: ' + bin(ord(message)) + ' to ' + ser.name)
 	
 	ser.write(message)
-	ser.flush()
 	buf = ser.read(1)
+	print(buf.hex())
+	ser.flush()
+	
 
 	intByte = int.from_bytes(buf, 'little')
 
@@ -78,9 +96,9 @@ def power(devId, state): #set the requested power state
 	else: #Power off the system
 		if (status(devId) == STAT_ON):
 			result = bitsauce(devId, ACT_OFF)
-			if (result == STAT_ON):
+			if (result == STAT_OFF):
 				print('system off')
-			elif (result == STAT_ON_FAIL):
+			elif (result == STAT_OFF_FAIL):
 				print('system failed to power off')
 			else:
 				print('unknown error occured trying to power off the system - try the \'kill\' action if neccessary')
@@ -106,7 +124,7 @@ def status(devId):
 	result = bitsauce(devId, ACT_STAT)
 	if (result == STAT_OFF):
 		print('system off')
-	elif(result ==STAT_ON):
+	elif(result == STAT_ON):
 		print('system on')
 	else:
 		print('invalid status received from arduino - check the arduino') 
@@ -115,9 +133,10 @@ def status(devId):
 	
 
 def query(): # the function to get number of devices on the system
+	print('query number of devices')
 	count = bitsauce(0, ACT_QRY)
 	if (count > 0):
-		print('numder of devices: ' + count)
+		print('numder of devices: ' + str(count))
 		return count
 	else:
 		print('no devices to control')

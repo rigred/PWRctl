@@ -8,7 +8,7 @@
   D3  = RST Node 1
 
   PWR0   A   1      14  Vdd
-  PWR0   A   2      13  CA   D16
+  PWR0   A   2      13  CA   D6
   RST0   B   3      12  CD   D17
   RST0   B   4      11   D   PWR1
   D2    CB   5      10   D   PWR1
@@ -55,7 +55,7 @@
 #define ACT_KILL 2 // 010 = Force Off
 #define ACT_RST  3 // 011 = Reset
 #define ACT_STAT 4 // 100 = Status
-#define ACT_QRY  5 // 101 = Query Number of Devices (Changes DevID response into number of devices)
+#define ACT_QRY  5 // 101 = Query Number of Devices (Changes response code into number of devices)
 
 // Response codes
 #define STAT_OFF      0 // 000 = Powered Off
@@ -67,7 +67,7 @@
 #define STAT_PARITY   6 // 110 = Parity Error
 #define STAT_DATABAD  7 // 111 = Bad Data received
 
-#define PWR0 16
+#define PWR0 6
 #define PWR1 17
 #define PWR2 18
 #define PWR3 19
@@ -81,14 +81,17 @@
 #define LED2 11
 #define LED3 12
 
-const byte numDev = 4;         //Number of Devices this arduino controls
+#define numDev 4         //Number of Devices this arduino controls (max 8)
+byte myPWR[numDev] = {PWR0, PWR1, PWR2, PWR3};
+byte myRST[numDev] = {RST0, RST1, RST3, RST3};
+byte mySTS[numDev] = {LED0, LED1, LED2, LED3};
 const unsigned int clickSpeed = 125;
 const unsigned int holdSpeed = 4000;
 
 byte rxByte = 0;        // rxByte holds the received command.
 
-bool parity_test(int rxByte) {
-  return true;
+bool parity_test(byte rxByte) {
+  return bool((rxByte & 0b10000000) >> 7) && bool(rxByte & 0b00000001);
 }
 
 void response(byte devId, byte respId) {
@@ -98,19 +101,19 @@ void response(byte devId, byte respId) {
 
   byte ebit = 1;
 
-  byte message = byte(sbit | ebit | devId | respId);
+  byte message = byte(sbit | devId | respId | ebit);
 
   Serial.write(message);
   Serial.flush();
 
 }
 
-bool devStatus(byte devId) {
+int devStatus(int devId) {
   return digitalRead(devId);
 }
 
 void setup() {
-  Serial.begin(38400);   // Open serial port (9600 bauds) to be used for sending byte data
+  Serial.begin(115200);   // Open serial port (9600 bauds) to be used for sending byte data
   // pins used for reading PC board PWR LED (Hi/Low) status
   pinMode(LED0, INPUT);
   pinMode(LED1, INPUT);
@@ -139,8 +142,8 @@ void setup() {
 
 //--------------- loop -----------------------------------------------
 void loop() {
-  if (Serial.available() == 1) {        // Check receive buffer.
-    rxByte = byte(Serial.read());
+  if (Serial.available() > 0) {        // Check receive buffer.
+    rxByte = Serial.read();
     Serial.flush();
 
     if (parity_test(rxByte)) {
@@ -150,10 +153,6 @@ void loop() {
 
       if (type == HIGH && devId < numDev && actId < 6) {
 
-        byte myPWR[numDev] = {PWR0, PWR1, PWR2, PWR3};
-        byte myRST[numDev] = {RST0, RST1, RST3, RST3};
-        byte mySTS[numDev] = {LED0, LED1, LED2, LED3};
-
         switch (actId) {
           case ACT_OFF: {// Power Off
               if (devStatus(mySTS[devId]) == HIGH) {
@@ -161,7 +160,6 @@ void loop() {
                 delay(clickSpeed);
                 digitalWrite(myPWR[devId], LOW);
               }
-              delay(clickSpeed);
               if (devStatus(mySTS[devId]) == LOW) {
                 response(devId, STAT_OFF_FAIL);
               } else {
@@ -171,12 +169,11 @@ void loop() {
             }
 
           case ACT_ON: { // Power On
-              if (devStatus(mySTS[devId]) == LOW) {
+              if (devStatus(int(mySTS[devId])) == LOW) {
                 digitalWrite(myPWR[devId], HIGH);
                 delay(clickSpeed);
                 digitalWrite(myPWR[devId], LOW);
               }
-              delay(clickSpeed);
               if (devStatus(mySTS[devId]) == HIGH) {
                 response(devId, STAT_ON);
               } else {
@@ -192,7 +189,6 @@ void loop() {
                 delay(holdSpeed);
                 digitalWrite(myPWR[devId], LOW);
               }
-              delay(clickSpeed);
               if (devStatus(mySTS[devId])) {
                 response(devId, STAT_OFF_FAIL);
               } else {
@@ -206,8 +202,9 @@ void loop() {
                 digitalWrite(myRST[devId], HIGH);
                 delay(clickSpeed);
                 digitalWrite(myRST[devId], LOW);
+                response(devId, STAT_OK);
               }
-              response(devId, STAT_OK);
+              
               break;
             }
 
@@ -217,7 +214,8 @@ void loop() {
             }
 
           case ACT_QRY: {
-              response(numDev, STAT_OK);
+              response(0, numDev);
+              break;
             }
 
           default: {
